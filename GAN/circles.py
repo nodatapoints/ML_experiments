@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+from __future__ import print_function
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -108,7 +109,8 @@ def plot_samples(history):
     for epoch_i, samples in enumerate(history):
         for sample_i, sample in enumerate(samples):
             plot_image(sample)
-            plt.savefig(f'samples/{epoch_i:03.0f}_{sample_i:02.0f}.png')
+            # plt.savefig(f'samples/{epoch_i:03.0f}_{sample_i:02.0f}.png')  # Python 3
+            plt.savefig('samples/%03.0f_%02.0f.png')
 
 
 def train_generator(batch_size=32):
@@ -153,7 +155,8 @@ while True:
 
         # Take samples every 100 epochs
         if epoch % 100 == 0:
-            print(f'epoch {epoch:10}    loss stacked: {stacked_loss:2.3f}    acc fake: {acc_fake:0.5f}    acc real: {acc_real:0.5f}')
+            # print(f'epoch {epoch:10}    loss stacked: {stacked_loss:2.3f}    acc fake: {acc_fake:0.5f}    acc real: {acc_real:0.5f}')  # Python 3
+            print('epoch %03d    loss stacked: %2.3f    acc fake: %.5f    acc real: %.5f' % (epoch, stack_loss, acc_fake, acc_real) )
 
             samples = generator.predict(
                 np.random.normal(0, 1, (n_samples, noise_dims)))
@@ -162,7 +165,7 @@ while True:
         epoch += 1
 
     except KeyboardInterrupt:
-        print(f'Aborted. Total epochs: {epoch}')
+        print('Aborted. Total epochs:', epoch)
         break
 
 plot_samples(history)
