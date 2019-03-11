@@ -110,7 +110,7 @@ def plot_samples(history):
         for sample_i, sample in enumerate(samples):
             plot_image(sample)
             # plt.savefig(f'samples/{epoch_i:03.0f}_{sample_i:02.0f}.png')  # Python 3
-            plt.savefig('samples/%03.0f_%02.0f.png')
+            plt.savefig('samples/%03.0f_%02.0f.png' % (epoch_i, sample_i))
 
 
 def train_generator(batch_size=32):
@@ -136,6 +136,20 @@ def train_discriminator(batch_size=32):
     return loss_fake, loss_real, acc_fake, acc_real
 
 
+def plot_stats(stats):
+    loss, acc_fake, acc_real = zip(*stats)
+
+    fig, (ax_loss, ax_acc) = plt.subplots(2, 1)
+
+    ax_loss.plot(loss)
+    ax_acc.plot(acc_fake)
+    ax_acc.plot(acc_real)
+
+    ax_loss.legend(('loss',))
+    ax_acc.legend(('fake', 'real'))
+
+    fig.savefig('stats.png')
+
 # misc container for stats over all epochs
 stats = []
 
@@ -156,7 +170,7 @@ while True:
         # Take samples every 100 epochs
         if epoch % 100 == 0:
             # print(f'epoch {epoch:10}    loss stacked: {stacked_loss:2.3f}    acc fake: {acc_fake:0.5f}    acc real: {acc_real:0.5f}')  # Python 3
-            print('epoch %03d    loss stacked: %2.3f    acc fake: %.5f    acc real: %.5f' % (epoch, stack_loss, acc_fake, acc_real) )
+            print('epoch %04d    loss stacked: %2.3f    acc fake: %.5f    acc real: %.5f' % (epoch, stacked_loss, acc_fake, acc_real) )
 
             samples = generator.predict(
                 np.random.normal(0, 1, (n_samples, noise_dims)))
@@ -169,3 +183,4 @@ while True:
         break
 
 plot_samples(history)
+plot_stats(stats)
