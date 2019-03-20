@@ -35,7 +35,7 @@ images = images / 127 - 1
 # Build generator
 model = Sequential()
 
-model.add(Dense(32, activation='relu'))
+model.add(Dense(32, activation='relu', input_shape=(noise_dims, )))
 model.add(Dense(512, activation='relu'))
 # model.add(BatchNormalization(momentum=.9))
 model.add(Dropout(.5))
@@ -58,9 +58,9 @@ generator = Model(noise, image_out)
 
 model = Sequential()
 
-# model.add(Reshape(image_dims+(1,), input_shape=image_dims))
-# model.add(Conv2D(64, (3, 3), activation='relu'))
-# model.add(MaxPool2D((2, 2)))
+model.add(Reshape(image_dims+(1,), input_shape=image_dims))
+model.add(Conv2D(64, (3, 3), activation='relu'))
+model.add(MaxPool2D((2, 2)))
 model.add(Flatten())
 model.add(Dense(256, activation='relu'))
 model.add(Dropout(.1))
@@ -133,20 +133,21 @@ def train_discriminator(batch_size=32):
     loss_fake, acc_fake = discriminator.train_on_batch(fake_images, fake)
     loss_real, acc_real = discriminator.train_on_batch(real_images, real)
 
-    return loss_fake, loss_real, acc_fake, acc_real
+    return (loss_fake, loss_real), (acc_fake, acc_real)
 
 
 def plot_stats(stats):
-    loss, acc_fake, acc_real = zip(*stats)
+    g_loss, d_loss, acc = zip(*stats)
 
     fig, (ax_loss, ax_acc) = plt.subplots(2, 1)
 
-    ax_loss.plot(loss)
-    ax_acc.plot(acc_fake)
-    ax_acc.plot(acc_real)
+    ax_loss.plot(g_loss)
+    ax_loss.plot(d_loss)
+    ax_acc.plot(acc)
 
-    ax_loss.legend(('loss',))
-    ax_acc.legend(('fake', 'real'))
+    ax_loss.set_ylabel('loss')
+    ax_loss.legend(('generator', 'discriminator'))
+    ax_acc.set_ylabel('accuracy')
 
     fig.savefig('stats.png')
 
@@ -161,16 +162,18 @@ epoch = 1
 
 while True:
     try:
-        stacked_loss = train_generator()
-        _, _, acc_fake, acc_real = train_discriminator()
-
+        generator_loss = train_generator()
+        losses, accuracies = train_discriminator()
+        discriminator_loss = np.mean(losses)
+        acc = np.mean(accuracies)
+        
         # stats for later evaluation
-        stats.append((stacked_loss, acc_fake, acc_real))
+        stats.append((generator_loss, discriminator_loss, acc))
 
         # Take samples every 100 epochs
         if epoch % 100 == 0:
             # print(f'epoch {epoch:10}    loss stacked: {stacked_loss:2.3f}    acc fake: {acc_fake:0.5f}    acc real: {acc_real:0.5f}')  # Python 3
-            print('epoch %04d    loss stacked: %2.3f    acc fake: %.5f    acc real: %.5f' % (epoch, stacked_loss, acc_fake, acc_real) )
+            print('epoch %04d    loss: %2.3f    acc: %.5f' % (epoch, generator_loss, acc) )
 
             samples = generator.predict(
                 np.random.normal(0, 1, (n_samples, noise_dims)))
