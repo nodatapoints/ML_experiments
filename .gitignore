@@ -2,3 +2,4 @@
 GAN/samples/*.png
 *.idx
 
+GAN/idx2numpy
