@@ -1,4 +1,4 @@
 */.ipynb_checkpoints
-GAN/samples/*.png
 *.idx
-
+*.png
+GAN/idx2numpy
