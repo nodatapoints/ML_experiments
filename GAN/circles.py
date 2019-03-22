@@ -105,6 +105,7 @@ def plot_image(image_array):
     """Plots the given 2D Image array (shape=image_dims) as grayscale image"""
     plt.imshow(image_array, cmap='Greys_r')
     plt.axis('off')
+    plt.tight_layout()
 
 
 def plot_samples(history):
