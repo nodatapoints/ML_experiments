@@ -34,23 +34,22 @@ images = images / 127 - 1
 
 
 # Build generator
-model = Sequential()
-
-model.add(Dense(32, activation='relu'))
-# model.add(Dense(512, activation='relu'))
-model.add(Dropout(.5))
-model.add(BatchNormalization())
-model.add(Dense(64*10*10, activation='relu'))
-model.add(BatchNormalization())
-model.add(Reshape((10, 10, 64)))
-model.add(Dropout(.5))
-model.add(Conv2D(64, (3, 3), padding='same', activation='relu'))
-model.add(BatchNormalization())
-model.add(UpSampling2D((2, 2)))
-model.add(Conv2D(16, (3, 3), padding='same', activation='relu'))
-model.add(BatchNormalization())
-model.add(Conv2D(1, (3, 3), padding='same', activation='tanh'))
-model.add(Reshape(image_dims))
+model = Sequential([
+    Dense(32, activation='relu'),
+    Dropout(.5),
+    BatchNormalization(),
+    Dense(64*10*10, activation='relu'),
+    BatchNormalization(),
+    Reshape((10, 10, 64)),
+    Dropout(.5),
+    Conv2D(64, (3, 3), padding='same', activation='relu'),
+    BatchNormalization(),
+    UpSampling2D((2, 2)),
+    Conv2D(16, (3, 3), padding='same', activation='relu'),
+    BatchNormalization(),
+    Conv2D(1, (3, 3), padding='same', activation='tanh'),
+    (Reshape(image_dims))
+])
 
 noise = Input(shape=(noise_dims, ))
 image_out = model(noise)
@@ -60,16 +59,15 @@ generator.summary()
 
 # Build discriminator
 
-model = Sequential()
-
-model.add(Reshape(image_dims+(1,), input_shape=image_dims))
-model.add(Conv2D(16, (3, 3), activation='relu'))
-model.add(MaxPool2D((2, 2)))
-model.add(Conv2D(64, (3, 3), activation='relu'))
-model.add(Flatten())
-# model.add(Dense(256, activation='relu'))
-model.add(Dense(32, activation='relu'))
-model.add(Dense(1, activation='sigmoid'))
+model = Sequential([
+    Reshape(image_dims+(1,), input_shape=image_dims),
+    Conv2D(16, (3, 3), activation='relu'),
+    MaxPool2D((2, 2)),
+    Conv2D(64, (3, 3), activation='relu'),
+    Flatten(),
+    Dense(32, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
 
 image_in = Input(shape=image_dims)
 validity = model(image_in)
@@ -103,9 +101,9 @@ stacked.compile(
 
 def plot_image(image_array):
     """Plots the given 2D Image array (shape=image_dims) as grayscale image"""
+    plt.tight_layout()
     plt.imshow(image_array, cmap='Greys_r')
     plt.axis('off')
-    plt.tight_layout()
 
 
 def plot_samples(history):
@@ -182,11 +180,13 @@ for epoch in range(900):
                 np.random.normal(0, 1, (n_samples, noise_dims)))
             history.append(samples)
 
-        epoch += 1
-
     except KeyboardInterrupt:
         print(f'Aborted. Total epochs: {epoch}')
         break
+
+history.append(
+    generator.predict(np.random.normal(0, 1, (100, noise_dims)))
+)
 
 plot_samples(history)
 plot_stats(stats)
