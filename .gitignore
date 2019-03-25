@@ -2,3 +2,4 @@
 *.idx
 *.png
 GAN/idx2numpy
+*.swp
