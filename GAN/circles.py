@@ -17,6 +17,7 @@ from keras.layers import Input, \
                          Conv2D, \
                          MaxPool2D, \
                          UpSampling2D
+from keras.optimizers import Adam
 
 # from keras.layers.advanced_activations import LeakyReLU
 # from keras.optimizers import Adam
@@ -35,13 +36,11 @@ images = images / 127 - 1
 
 # Build generator
 model = Sequential([
-    Dense(32, activation='relu'),
-    Dropout(.5),
+    Dense(32, activation='relu', input_shape=(noise_dims, )),
     BatchNormalization(),
     Dense(64*10*10, activation='relu'),
     BatchNormalization(),
     Reshape((10, 10, 64)),
-    Dropout(.5),
     Conv2D(64, (3, 3), padding='same', activation='relu'),
     BatchNormalization(),
     UpSampling2D((2, 2)),
@@ -50,32 +49,34 @@ model = Sequential([
     Conv2D(1, (3, 3), padding='same', activation='tanh'),
     (Reshape(image_dims))
 ])
+print('Generator')
+model.summary()
 
 noise = Input(shape=(noise_dims, ))
 image_out = model(noise)
 
 generator = Model(noise, image_out)
-generator.summary()
 
 # Build discriminator
 
 model = Sequential([
     Reshape(image_dims+(1,), input_shape=image_dims),
-    Conv2D(16, (3, 3), activation='relu'),
+    Conv2D(16, (3, 3), activation='relu', padding='same'),
     MaxPool2D((2, 2)),
-    Conv2D(64, (3, 3), activation='relu'),
+    Conv2D(64, (3, 3), activation='relu', padding='same'),
     Flatten(),
     Dense(32, activation='relu'),
     Dense(1, activation='sigmoid')
 ])
+print('Discriminator')
+model.summary()
 
 image_in = Input(shape=image_dims)
 validity = model(image_in)
 discriminator = Model(image_in, validity)
-discriminator.summary()
 
 discriminator.compile(
-    optimizer='Adam',
+    optimizer='adam',
     loss='binary_crossentropy',
     metrics=['accuracy']
 )
@@ -125,7 +126,6 @@ def plot_stats(stats):
     stacked_loss, loss_fake, loss_real, acc_fake, acc_real = zip(*stats)
 
     fig, (ax_loss, ax_acc) = plt.subplots(2, 1)
-
     ax_loss.plot(stacked_loss)
     ax_loss.plot(loss_real)
     ax_loss.plot(loss_fake)
@@ -137,7 +137,7 @@ def plot_stats(stats):
     ax_acc.set_ylabel('accuracy')
     ax_acc.legend(('fake', 'real'))
 
-    fig.savefig('stats.png')
+    fig.savefig('stats.png', dpi=100)
 
 
 def train_discriminator(batch_size=32):
@@ -164,7 +164,7 @@ history = []
 
 n_samples = 5
 
-for epoch in range(900):
+for epoch in range(1500):
     try:
         stacked_loss = train_generator()
         loss_fake, loss_real, acc_fake, acc_real = train_discriminator()
