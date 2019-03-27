@@ -66,6 +66,7 @@ model = Sequential([
     Conv2D(64, (3, 3), activation='relu', padding='same'),
     Flatten(),
     Dense(32, activation='relu'),
+    Dropout(.3),
     Dense(1, activation='sigmoid')
 ])
 print('Discriminator')
@@ -76,7 +77,7 @@ validity = model(image_in)
 discriminator = Model(image_in, validity)
 
 discriminator.compile(
-    optimizer='adam',
+    optimizer=Adam(lr=1e-4),
     loss='binary_crossentropy',
     metrics=['accuracy']
 )
@@ -162,9 +163,9 @@ stats = []
 # list of lists containing `n_samples` of random images for every 100th epoch
 history = []
 
-n_samples = 5
+n_samples = 2
 
-for epoch in range(1500):
+for epoch in range(6000):
     try:
         stacked_loss = train_generator()
         loss_fake, loss_real, acc_fake, acc_real = train_discriminator()
