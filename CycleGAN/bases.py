@@ -1,24 +1,32 @@
+import numpy as np
+
 from keras.layers import Input
+from keras import Model
+from contextlib import contextmanager
+
 
 class GAN:
     def __init__(self, generator, discriminator,
-                 g_compile_args={'optimizer':'adam', 'loss': 'binary_crossentropy'},
-                 d_compile_args={'optimizer':'adam', 'loss': 'binary_crossentropy'}):
+                 g_compile_args={'optimizer': 'adam', 'loss': 'binary_crossentropy'},
+                 d_compile_args={'optimizer': 'adam', 'loss': 'binary_crossentropy'}):
         self.generator = generator
         self.discriminator = discriminator
         self.discriminator.compile(**d_compile_args)
-        self.freeze(discriminator)
 
-        stacked_input = Input(generator.input_shape)
-        h = generator(stacked_input)
-        validity = discriminator(h)
-        self.stacked = Model(stacked_input, validity)
-        self.stacked.compile(**g_compile_args)
+        self._build_stacked(g_compile_args)
+
+    def _build_stacked(self, compile_args):
+        with self.frozen(self.discriminator):
+            stacked_input = Input(self.generator.input_shape)
+            h = self.generator(stacked_input)
+            validity = self.discriminator(h)
+            self.stacked = Model(stacked_input, validity)
+            self.stacked.compile(compile_args)
 
     def train_generator(self, x_space, batch_size=32):
         x = self.random_sample(x_space, batch_size)
         y = np.ones((x.shape[0], 1))
-        return self.stacked.train_on_batch(noise, real)
+        return self.stacked.train_on_batch(x, y)
 
     def train_discriminator_on_batch(self, x_fake, real_sample):
         y_fake = np.zeros((x_fake.shape[0], 1))
@@ -30,18 +38,23 @@ class GAN:
         )
 
     @staticmethod
-    def freeze(model):
-        model.trainable = False
+    def set_frozen(model, flag):
+        model.trainable = flag
         for layer in model.layers:
-            layer.trainable = False
+            layer.trainable = flag
 
     @staticmethod
+    @contextmanager
+    def frozen(model):
+        GAN.set_frozen(model, True)
+        yield
+        GAN.set_frozen(model, False)
+
     def random_sample(space, batch_size=32):
         random_indices = np.random.choice(space.shape[0], batch_size)
         return space.take(random_indices, axis=0)  # batch dimension
 
-
-    def train_discriminator(x_space, real_space, batch_size=32):
+    def train_discriminator(self, x_space, real_space, batch_size=32):
         return self.train_discriminator_on_batch(
             x_fake=self.random_sample(x_space, batch_size),
             real_sample=self.random_sample(real_space, batch_size)
