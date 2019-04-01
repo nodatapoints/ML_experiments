@@ -6,22 +6,23 @@ from contextlib import contextmanager
 
 
 class GAN:
-    def __init__(self, generator, discriminator,
-                 g_compile_args={'optimizer': 'adam', 'loss': 'binary_crossentropy'},
-                 d_compile_args={'optimizer': 'adam', 'loss': 'binary_crossentropy'}):
+    def __init__(self, generator, discriminator):
         self.generator = generator
         self.discriminator = discriminator
-        self.discriminator.compile(**d_compile_args)
 
-        self._build_stacked(g_compile_args)
+        self._build_stacked()
 
-    def _build_stacked(self, compile_args):
+    def _build_stacked(self):
         with self.frozen(self.discriminator):
             stacked_input = Input(self.generator.input_shape)
             h = self.generator(stacked_input)
             validity = self.discriminator(h)
             self.stacked = Model(stacked_input, validity)
-            self.stacked.compile(compile_args)
+    # IMPORTANT
+    # after initializing GAN stacked and discriminator have to
+    # be compiled
+    # gan.stacked.compile(...)
+    # gan.discriminator.compile(...)
 
     def train_generator(self, x_space, batch_size=32):
         x = self.random_sample(x_space, batch_size)
@@ -35,6 +36,12 @@ class GAN:
         return (
             self.discriminator.train_on_batch(fake_sample, y_fake),
             self.discriminator.train_on_batch(real_sample, y_real)
+        )
+
+    def train_discriminator(self, x_space, real_space, batch_size=32):
+        return self.train_discriminator_on_batch(
+            x_fake=self.random_sample(x_space, batch_size),
+            real_sample=self.random_sample(real_space, batch_size)
         )
 
     @staticmethod
@@ -53,9 +60,3 @@ class GAN:
     def random_sample(space, batch_size=32):
         random_indices = np.random.choice(space.shape[0], batch_size)
         return space.take(random_indices, axis=0)  # batch dimension
-
-    def train_discriminator(self, x_space, real_space, batch_size=32):
-        return self.train_discriminator_on_batch(
-            x_fake=self.random_sample(x_space, batch_size),
-            real_sample=self.random_sample(real_space, batch_size)
-        )
