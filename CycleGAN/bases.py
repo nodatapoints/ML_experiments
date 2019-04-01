@@ -6,9 +6,11 @@ from contextlib import contextmanager
 
 
 class GAN:
-    def __init__(self, generator, discriminator):
+    def __init__(self, *, generator, discriminator, input_space, output_space):
         self.generator = generator
         self.discriminator = discriminator
+        self.input_space = input_space
+        self.output_space = output_space
 
         self._build_stacked()
 
@@ -24,10 +26,16 @@ class GAN:
     # gan.stacked.compile(...)
     # gan.discriminator.compile(...)
 
-    def train_generator(self, x_space, batch_size=32):
-        x = self.random_sample(x_space, batch_size)
+    def train_generator(self, batch_size=32):
+        x = self.random_sample(self.input_space, batch_size)
         y = np.ones((x.shape[0], 1))
         return self.stacked.train_on_batch(x, y)
+
+    def train_discriminator(self, batch_size=32):
+        return self.train_discriminator_on_batch(
+            x_fake=self.random_sample(self.input_space, batch_size),
+            real_sample=self.random_sample(self.output_space, batch_size)
+        )
 
     def train_discriminator_on_batch(self, x_fake, real_sample):
         y_fake = np.zeros((x_fake.shape[0], 1))
@@ -36,12 +44,6 @@ class GAN:
         return (
             self.discriminator.train_on_batch(fake_sample, y_fake),
             self.discriminator.train_on_batch(real_sample, y_real)
-        )
-
-    def train_discriminator(self, x_space, real_space, batch_size=32):
-        return self.train_discriminator_on_batch(
-            x_fake=self.random_sample(x_space, batch_size),
-            real_sample=self.random_sample(real_space, batch_size)
         )
 
     @staticmethod
@@ -63,8 +65,10 @@ class GAN:
 
 
 class CycleGAN:
-    def __init__(self, gan_a, gan_b):
+    def __init__(self, *, gan_a, gan_b, space_a, space_b):
         self.gan_a, self.gan_b = gan_a, gan_b
+        self.space_a, self.space_b = space_a, space_b
+
         self.left_inverter = self._build_stacked_inverter(gan_a, gan_b)
         self.right_inverter = self._build_stacked_inverter(gan_b, gan_a)
 
@@ -81,8 +85,8 @@ class CycleGAN:
         x = GAN.random_sample(x_space, batch_size)
         return inverter.train_on_batch(x, x)
 
-    def train_left_inverse(self, x_space, batch_size=32):
-        return self._train_stacked_inverter(self.left_inverter, x_space, batch_size)
+    def train_left_inverse(self, batch_size=32):
+        return self._train_stacked_inverter(self.left_inverter, self.space_a, batch_size)
 
-    def train_right_inverse(self, x_space, batch_size=32):
-        return self._train_stacked_inverter(self.right_inverter, x_space, batch_size)
+    def train_right_inverse(self, batch_size=32):
+        return self._train_stacked_inverter(self.right_inverter, self.space_b, batch_size)
