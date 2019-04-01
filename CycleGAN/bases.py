@@ -6,7 +6,8 @@ from contextlib import contextmanager
 
 
 class GAN:
-    def __init__(self, *, generator, discriminator, input_space, output_space):
+    def __init__(self, *, generator: Model, discriminator: Model,
+                 input_space: np.array, output_space: np.array):
         self.generator = generator
         self.discriminator = discriminator
         self.input_space = input_space
@@ -26,18 +27,18 @@ class GAN:
     # gan.stacked.compile(...)
     # gan.discriminator.compile(...)
 
-    def train_generator(self, batch_size=32):
+    def train_generator(self, batch_size: int=32):
         x = self.random_sample(self.input_space, batch_size)
         y = np.ones((x.shape[0], 1))
         return self.stacked.train_on_batch(x, y)
 
-    def train_discriminator(self, batch_size=32):
+    def train_discriminator(self, batch_size: int=32):
         return self.train_discriminator_on_batch(
             x_fake=self.random_sample(self.input_space, batch_size),
             real_sample=self.random_sample(self.output_space, batch_size)
         )
 
-    def train_discriminator_on_batch(self, x_fake, real_sample):
+    def train_discriminator_on_batch(self, x_fake: np.array, real_sample: np.array):
         y_fake = np.zeros((x_fake.shape[0], 1))
         y_real = np.ones((real_sample.shape[0], 1))
         fake_sample = self.generator.predict(x_fake)
@@ -47,46 +48,51 @@ class GAN:
         )
 
     @staticmethod
-    def set_frozen(model, flag):
+    def set_frozen(model: Model, flag: bool):
         model.trainable = flag
         for layer in model.layers:
             layer.trainable = flag
 
     @staticmethod
     @contextmanager
-    def frozen(model):
+    def frozen(model: Model):
         GAN.set_frozen(model, True)
         yield
         GAN.set_frozen(model, False)
 
-    def random_sample(space, batch_size=32):
+    def random_sample(space: np.array, batch_size: int=32):
         random_indices = np.random.choice(space.shape[0], batch_size)
         return space.take(random_indices, axis=0)  # batch dimension
 
 
 class CycleGAN:
-    def __init__(self, *, gan_a, gan_b, space_a, space_b):
+    def __init__(self, *, gan_a: GAN, gan_b: GAN):
         self.gan_a, self.gan_b = gan_a, gan_b
-        self.space_a, self.space_b = space_a, space_b
 
-        self.left_inverter = self._build_stacked_inverter(gan_a, gan_b)
-        self.right_inverter = self._build_stacked_inverter(gan_b, gan_a)
+        assert gan_a.input_space is gan_b.output_space \
+            and gan_b.input_space is gan_a.output_space, 'GANs must transform between the same spaces'
+
+        self.space_a = gan_a.input_space
+        self.space_b = gan_b.input_space
+
+        self.left_inverter = self._build_stacked_inverter(gan_a.generator, gan_b.generator)
+        self.right_inverter = self._build_stacked_inverter(gan_b.generator, gan_a.generator)
 
     # !IMPORTANT
     #   compile left and right inverse after initialisation
 
-    def _build_stacked_inverter(self, f, g):
+    def _build_stacked_inverter(self, f: Model, g: Model):
         original = Input(f.input_shape)
         translated = f(original)
         reconstruction = g(translated)
         return Model(original, reconstruction)
 
-    def _train_stacked_inverter(self, inverter, x_space, batch_size=32):
+    def _train_stacked_inverter(self, inverter: Model, x_space: np.array, batch_size: int=32):
         x = GAN.random_sample(x_space, batch_size)
         return inverter.train_on_batch(x, x)
 
-    def train_left_inverse(self, batch_size=32):
+    def train_left_inverse(self, batch_size: int=32):
         return self._train_stacked_inverter(self.left_inverter, self.space_a, batch_size)
 
-    def train_right_inverse(self, batch_size=32):
+    def train_right_inverse(self, batch_size: int=32):
         return self._train_stacked_inverter(self.right_inverter, self.space_b, batch_size)
