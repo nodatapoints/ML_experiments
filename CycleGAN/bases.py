@@ -60,3 +60,29 @@ class GAN:
     def random_sample(space, batch_size=32):
         random_indices = np.random.choice(space.shape[0], batch_size)
         return space.take(random_indices, axis=0)  # batch dimension
+
+
+class CycleGAN:
+    def __init__(self, gan_a, gan_b):
+        self.gan_a, self.gan_b = gan_a, gan_b
+        self.left_inverter = self._build_stacked_inverter(gan_a, gan_b)
+        self.right_inverter = self._build_stacked_inverter(gan_b, gan_a)
+
+    # !IMPORTANT
+    #   compile left and right inverse after initialisation
+
+    def _build_stacked_inverter(self, f, g):
+        original = Input(f.input_shape)
+        translated = f(original)
+        reconstruction = g(translated)
+        return Model(original, reconstruction)
+
+    def _train_stacked_inverter(self, inverter, x_space, batch_size=32):
+        x = GAN.random_sample(x_space, batch_size)
+        return inverter.train_on_batch(x, x)
+
+    def train_left_inverse(self, x_space, batch_size=32):
+        return self._train_stacked_inverter(self.left_inverter, x_space, batch_size)
+
+    def train_right_inverse(self, x_space, batch_size=32):
+        return self._train_stacked_inverter(self.right_inverter, x_space, batch_size)
