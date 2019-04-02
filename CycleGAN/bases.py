@@ -13,11 +13,14 @@ class GAN:
         self.input_space = input_space
         self.output_space = output_space
 
+        self.input_shape = input_space.shape[1:]
+        self.output_shape = output_space.shape[1:]
+
         self._build_stacked()
 
     def _build_stacked(self):
         with self.frozen(self.discriminator):
-            stacked_input = Input(self.generator.input_shape)
+            stacked_input = Input(self.input_shape)
             h = self.generator(stacked_input)
             validity = self.discriminator(h)
             self.stacked = Model(stacked_input, validity)
@@ -60,13 +63,14 @@ class GAN:
         yield
         GAN.set_frozen(model, False)
 
+    @staticmethod
     def random_sample(space: np.array, batch_size: int=32):
         random_indices = np.random.choice(space.shape[0], batch_size)
         return space.take(random_indices, axis=0)  # batch dimension
 
 
 class CycleGAN:
-    def __init__(self, *, gan_a: GAN, gan_b: GAN):
+    def __init__(self, gan_a: GAN, gan_b: GAN):
         self.gan_a, self.gan_b = gan_a, gan_b
 
         assert gan_a.input_space is gan_b.output_space \
@@ -75,16 +79,16 @@ class CycleGAN:
         self.space_a = gan_a.input_space
         self.space_b = gan_b.input_space
 
-        self.left_inverter = self._build_stacked_inverter(gan_a.generator, gan_b.generator)
-        self.right_inverter = self._build_stacked_inverter(gan_b.generator, gan_a.generator)
+        self.left_inverter = self._build_stacked_inverter(gan_a, gan_b)
+        self.right_inverter = self._build_stacked_inverter(gan_b, gan_a)
 
     # !IMPORTANT
     #   compile left and right inverse after initialisation
 
-    def _build_stacked_inverter(self, f: Model, g: Model):
+    def _build_stacked_inverter(self, f: GAN, g: GAN):
         original = Input(f.input_shape)
-        translated = f(original)
-        reconstruction = g(translated)
+        translated = f.generator(original)
+        reconstruction = g.generator(translated)
         return Model(original, reconstruction)
 
     def _train_stacked_inverter(self, inverter: Model, x_space: np.array, batch_size: int=32):
