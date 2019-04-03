@@ -20,6 +20,7 @@ from keras.layers import Input, \
 from keras.optimizers import Adam
 
 from bases import GAN, CycleGAN
+from training import Training
 
 # from keras.layers.advanced_activations import LeakyReLU
 # from keras.optimizers import Adam
@@ -94,7 +95,7 @@ g = Sequential([
 
 g_d = Sequential([
     Dense(10, activation='relu', input_shape=noise_dims),
-    Dense(10, activation='relu'),
+    Dropout(.5),
     Dense(1, activation='sigmoid')
 ])
 
@@ -119,19 +120,98 @@ cycle_gan = CycleGAN(f_gan, g_gan)
 
 cycle_gan.left_inverter.compile(
     optimizer='adam',
-    loss='mean_squared_error'
+    loss='mean_squared_error',
 )
 
 cycle_gan.right_inverter.compile(
     optimizer='adam',
-    loss='mean_squared_error'
+    loss='mean_squared_error',
 )
 
-f_gan.train_generator()
-f_gan.train_discriminator()
+train = Training(
+    n_generations=1000,
+    log_period=100,
+    stat_entries=(
+        'fs_loss',
+        'fd_loss',
+        'fd_acc',
+        'gs_loss',
+        'gd_loss',
+        'gd_acc',
+        'leftinv_loss',
+        'rightinv_loss',
+    )
+)
 
-g_gan.train_generator()
-g_gan.train_discriminator()
+history = []
 
-cycle_gan.train_left_inverse()
-cycle_gan.train_right_inverse()
+for _ in train:
+    try:
+        fs_loss = f_gan.train_generator()  # f stacked
+        fd_loss, fd_acc = f_gan.train_discriminator()  # g discriminator
+
+        gs_loss = g_gan.train_generator()
+        gd_loss, gd_acc = g_gan.train_discriminator()
+
+        leftinv_loss = cycle_gan.train_left_inverse()
+        rightinv_loss = cycle_gan.train_right_inverse()
+
+        if train.log:
+            print(f'{fs_loss:1.5f} {gs_loss:1.5f} {leftinv_loss:1.5f} {rightinv_loss:1.5f}')
+
+            g_sample = g_gan.generate_sample(5)
+
+            history.append(g_sample)
+
+        train.append_stats(
+            fs_loss,
+            fd_loss,
+            fd_acc,
+            gs_loss,
+            gd_loss,
+            gd_acc,
+            leftinv_loss,
+            rightinv_loss
+        )
+
+    except KeyboardInterrupt:
+        train._compile_stats()
+        break
+
+
+def plot_image(image_array):
+    """Plots the given 2D Image array (shape=image_dims) as grayscale image"""
+    plt.tight_layout()
+    plt.imshow(image_array, cmap='Greys_r')
+    plt.axis('off')
+
+
+def plot_samples(history):
+    """Saves every image array in the 2D array `history` as file under ./samples"""
+    for epoch_i, samples in enumerate(history):
+        for sample_i, sample in enumerate(samples):
+            plot_image(sample)
+            plt.savefig(f'samples/{epoch_i:03.0f}_{sample_i:02.0f}.png')
+
+
+plot_samples(history)
+
+fig, (ax_stacked_loss, ax_inv_loss, ax_acc) = plt.subplots(3, 1)
+fig.set_size_inches(16, 8)
+
+ax_stacked_loss.set_title('stacked loss')
+ax_stacked_loss.plot(train.stats.fs_loss)
+ax_stacked_loss.plot(train.stats.gs_loss)
+ax_stacked_loss.legend(('f', 'g'))
+
+ax_inv_loss.set_title('cycle loss')
+ax_inv_loss.plot(train.stats.leftinv_loss)
+ax_inv_loss.plot(train.stats.rightinv_loss)
+ax_inv_loss.legend(('left', 'right'))
+
+ax_acc.set_title('discriminator accuracy')
+ax_acc.plot(train.stats.fd_acc)
+ax_acc.plot(train.stats.gd_acc)
+ax_acc.legend(('f', 'g'))
+
+fig.savefig('stats.png')
