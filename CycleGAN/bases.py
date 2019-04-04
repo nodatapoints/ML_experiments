@@ -45,10 +45,11 @@ class GAN:
         y_fake = np.zeros((x_fake.shape[0], 1))
         y_real = np.ones((real_sample.shape[0], 1))
         fake_sample = self.generator.predict(x_fake)
-        return (
-            self.discriminator.train_on_batch(fake_sample, y_fake),
-            self.discriminator.train_on_batch(real_sample, y_real)
-        )
+
+        loss_fake, acc_fake = self.discriminator.train_on_batch(fake_sample, y_fake)
+        loss_real, acc_real = self.discriminator.train_on_batch(real_sample, y_real)
+
+        return np.mean((loss_fake, loss_real)), np.mean((acc_fake, acc_rean))
 
     def generate_sample(self, batch_size: int=5):
         x = GAN.random_sample(self.input_space, batch_size)
