@@ -50,6 +50,10 @@ class GAN:
             self.discriminator.train_on_batch(real_sample, y_real)
         )
 
+    def generate_sample(self, batch_size: int=5):
+        x = GAN.random_sample(self.input_space, batch_size)
+        return self.generator.predict(x)
+
     @staticmethod
     def set_frozen(model: Model, flag: bool):
         model.trainable = flag

@@ -10,12 +10,11 @@ def plot_image(image_array):
     plt.axis('off')
 
 
-def plot_samples(history):
-    """Saves every image array in the 2D array `history` as file under ./samples"""
-    for epoch_i, samples in enumerate(history):
-        for sample_i, sample in enumerate(samples):
-            plot_image(sample)
-            plt.savefig(f'samples/{epoch_i:03.0f}_{sample_i:02.0f}.png')
+def plot_samples(samples):
+    for gen, (sample, name_fmt) in enumerate(samples):
+        for i, image in enumerate(sample):
+            plot_image(image)
+            plt.savefig(name_fmt.format(gen=gen, i=i))
 
 
 def plot_stats(stats):
