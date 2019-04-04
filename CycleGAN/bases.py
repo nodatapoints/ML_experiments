@@ -2,12 +2,12 @@ import numpy as np
 
 from keras.layers import Input
 from keras import Model
-from contextlib import contextmanager
 
 
 class GAN:
     def __init__(self, *, generator: Model, discriminator: Model,
-                 input_space: np.array, output_space: np.array):
+                input_space: np.array, output_space: np.array,
+                d_compile_args: dict, s_compile_args: dict):
         self.generator = generator
         self.discriminator = discriminator
         self.input_space = input_space
@@ -16,19 +16,19 @@ class GAN:
         self.input_shape = input_space.shape[1:]
         self.output_shape = output_space.shape[1:]
 
+        self.discriminator.compile(**d_compile_args)
         self._build_stacked()
+        self.stacked.compile(**s_comile_args)
 
     def _build_stacked(self):
-        with self.frozen(self.discriminator):
-            stacked_input = Input(self.input_shape)
-            h = self.generator(stacked_input)
-            validity = self.discriminator(h)
-            self.stacked = Model(stacked_input, validity)
-    # IMPORTANT
-    # after initializing GAN stacked and discriminator have to
-    # be compiled
-    # gan.stacked.compile(...)
-    # gan.discriminator.compile(...)
+        model.trainable = False
+        for layer in model.layers:
+            layer.trainable = False
+
+        stacked_input = Input(self.input_shape)
+        h = self.generator(stacked_input)
+        validity = self.discriminator(h)
+        self.stacked = Model(stacked_input, validity)
 
     def train_generator(self, batch_size: int=32):
         x = self.random_sample(self.input_space, batch_size)
@@ -53,19 +53,6 @@ class GAN:
     def generate_sample(self, batch_size: int=5):
         x = GAN.random_sample(self.input_space, batch_size)
         return self.generator.predict(x)
-
-    @staticmethod
-    def set_frozen(model: Model, flag: bool):
-        model.trainable = flag
-        for layer in model.layers:
-            layer.trainable = flag
-
-    @staticmethod
-    @contextmanager
-    def frozen(model: Model):
-        GAN.set_frozen(model, True)
-        yield
-        GAN.set_frozen(model, False)
 
     @staticmethod
     def random_sample(space: np.array, batch_size: int=32):

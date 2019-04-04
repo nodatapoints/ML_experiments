@@ -70,19 +70,17 @@ f_d = Sequential([
 f_gan = GAN(
     generator=f,
     discriminator=f_d,
-    input_space=noise_space,
-    output_space=images_space
-)
-
-f_gan.stacked.compile(
-    optimizer='adam',
-    loss='binary_crossentropy'
-)
-f_gan.stacked.summary()
-
-f_gan.discriminator.compile(
-    optimizer=Adam(lr=1e-4),
-    loss='binary_crossentropy'
+    input_space=images_space,
+    output_space=noise_space,
+    d_compile_args=dict(
+        optimizer='adam',
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    ),
+    s_compile_args=dict(
+        optimizer='adam',
+        loss='binary_crossentropy'
+    )
 )
 
 g = Sequential([
@@ -106,17 +104,16 @@ g_gan = GAN(
     generator=g,
     discriminator=g_d,
     input_space=images_space,
-    output_space=noise_space
-)
-
-g_gan.stacked.compile(
-    optimizer='adam',
-    loss='binary_crossentropy'
-)
-
-g_gan.discriminator.compile(
-    optimizer='adam',
-    loss='binary_crossentropy'
+    output_space=noise_space,
+    d_compile_args=dict(
+        optimizer='adam',
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    ),
+    s_compile_args=dict(
+        optimizer='adam',
+        loss='binary_crossentropy'
+    )
 )
 
 cycle_gan = CycleGAN(f_gan, g_gan)
