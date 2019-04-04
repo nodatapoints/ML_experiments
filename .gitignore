@@ -3,3 +3,4 @@
 *.png
 GAN/idx2numpy
 *.swp
+*/__pycache__
