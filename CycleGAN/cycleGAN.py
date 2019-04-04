@@ -21,6 +21,7 @@ from keras.optimizers import Adam
 
 from bases import GAN, CycleGAN
 from training import Training
+from plots import plot_stats, plot_samples
 
 # from keras.layers.advanced_activations import LeakyReLU
 # from keras.optimizers import Adam
@@ -90,12 +91,14 @@ g = Sequential([
     MaxPool2D((2, 2)),
     Conv2D(64, (3, 3), activation='relu', padding='same'),
     Flatten(),
+    Dense(10, activation='relu'),
     Dense(10, activation='relu')
 ])
 
 g_d = Sequential([
-    Dense(10, activation='relu', input_shape=noise_dims),
-    Dropout(.5),
+    Dense(256, activation='relu', input_shape=noise_dims),
+    Dense(64, activation='relu', input_shape=noise_dims),
+    Dense(64, activation='relu', input_shape=noise_dims),
     Dense(1, activation='sigmoid')
 ])
 
@@ -143,25 +146,29 @@ train = Training(
     )
 )
 
-history = []
-
-for _ in train:
-    try:
-        fs_loss = f_gan.train_generator()  # f stacked
-        fd_loss, fd_acc = f_gan.train_discriminator()  # g discriminator
+try:
+    for _ in train:
+        # fs_loss = f_gan.train_generator()  # f stacked
+        # fd_loss, fd_acc = f_gan.train_discriminator()  # g discriminator
 
         gs_loss = g_gan.train_generator()
         gd_loss, gd_acc = g_gan.train_discriminator()
 
-        leftinv_loss = cycle_gan.train_left_inverse()
-        rightinv_loss = cycle_gan.train_right_inverse()
+        # leftinv_loss = cycle_gan.train_left_inverse()
+        # rightinv_loss = cycle_gan.train_right_inverse()
+
+        fs_loss = 0
+        fd_loss, fd_acc = 0, 0
+        leftinv_loss, rightinv_loss = 0, 0
 
         if train.log:
-            print(f'{fs_loss:1.5f} {gs_loss:1.5f} {leftinv_loss:1.5f} {rightinv_loss:1.5f}')
+            print(
+                f'{fs_loss:1.5f} {gs_loss:1.5f} {leftinv_loss:1.5f} {rightinv_loss:1.5f}'
+            )
 
-            g_sample = g_gan.generate_sample(5)
-
-            history.append(g_sample)
+        if train.make_samples:
+            g_sample = g_gan.generate_sample(5).reshape((5, 5, 2))
+            train.append_sample(g_sample, 'samples/sample_{gen:05f}_{i:02f}.png')
 
         train.append_stats(
             fs_loss,
@@ -174,9 +181,10 @@ for _ in train:
             rightinv_loss
         )
 
-    except KeyboardInterrupt:
-        train._compile_stats()
-        break
+except KeyboardInterrupt:
+    pass
 
-
-
+else:
+    train.compile_records()
+    plot_samples(train.samples)
+    plot_stats(train.stats)
