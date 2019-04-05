@@ -18,11 +18,11 @@ class GAN:
 
         self.discriminator.compile(**d_compile_args)
         self._build_stacked()
-        self.stacked.compile(**s_comile_args)
+        self.stacked.compile(**s_compile_args)
 
     def _build_stacked(self):
-        model.trainable = False
-        for layer in model.layers:
+        self.discriminator.trainable = False
+        for layer in self.discriminator.layers:
             layer.trainable = False
 
         stacked_input = Input(self.input_shape)
@@ -49,7 +49,7 @@ class GAN:
         loss_fake, acc_fake = self.discriminator.train_on_batch(fake_sample, y_fake)
         loss_real, acc_real = self.discriminator.train_on_batch(real_sample, y_real)
 
-        return np.mean((loss_fake, loss_real)), np.mean((acc_fake, acc_rean))
+        return np.mean((loss_fake, loss_real)), np.mean((acc_fake, acc_real))
 
     def generate_sample(self, batch_size: int=5):
         x = GAN.random_sample(self.input_space, batch_size)
