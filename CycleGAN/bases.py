@@ -6,8 +6,8 @@ from keras import Model
 
 class GAN:
     def __init__(self, *, generator: Model, discriminator: Model,
-                input_space: np.array, output_space: np.array,
-                d_compile_args: dict, s_compile_args: dict):
+                 input_space: np.array, output_space: np.array, d_compile_args: dict, 
+                 s_compile_args: dict):
         self.generator = generator
         self.discriminator = discriminator
         self.input_space = input_space
@@ -17,18 +17,16 @@ class GAN:
         self.output_shape = output_space.shape[1:]
 
         self.discriminator.compile(**d_compile_args)
-        self._build_stacked()
+        self.stacked = self._build_stacked()
         self.stacked.compile(**s_compile_args)
 
     def _build_stacked(self):
-        self.discriminator.trainable = False
-        for layer in self.discriminator.layers:
-            layer.trainable = False
+        self.set_trainable(self.discriminator, False)
 
         stacked_input = Input(self.input_shape)
         h = self.generator(stacked_input)
         validity = self.discriminator(h)
-        self.stacked = Model(stacked_input, validity)
+        return Model(stacked_input, validity)
 
     def train_generator(self, batch_size: int=32):
         x = self.random_sample(self.input_space, batch_size)
@@ -45,15 +43,20 @@ class GAN:
         y_fake = np.zeros((x_fake.shape[0], 1))
         y_real = np.ones((real_sample.shape[0], 1))
         fake_sample = self.generator.predict(x_fake)
-
-        loss_fake, acc_fake = self.discriminator.train_on_batch(fake_sample, y_fake)
-        loss_real, acc_real = self.discriminator.train_on_batch(real_sample, y_real)
-
-        return np.mean((loss_fake, loss_real)), np.mean((acc_fake, acc_real))
+        return (
+            self.discriminator.train_on_batch(fake_sample, y_fake),
+            self.discriminator.train_on_batch(real_sample, y_real)
+        )
 
     def generate_sample(self, batch_size: int=5):
         x = GAN.random_sample(self.input_space, batch_size)
         return self.generator.predict(x)
+
+    @staticmethod
+    def set_trainable(model: Model, flag: bool):
+        model.trainable = flag
+        for layer in model.layers:
+            layer.trainable = flag
 
     @staticmethod
     def random_sample(space: np.array, batch_size: int=32):
