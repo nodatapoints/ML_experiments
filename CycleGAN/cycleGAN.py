@@ -70,10 +70,10 @@ f_d = Sequential([
 f_gan = GAN(
     generator=f,
     discriminator=f_d,
-    input_space=images_space,
-    output_space=noise_space,
+    input_space=noise_space,
+    output_space=images_space,
     d_compile_args=dict(
-        optimizer='adam',
+        optimizer=Adam(lr=1e-4),
         loss='binary_crossentropy',
         metrics=['accuracy']
     ),
@@ -116,16 +116,17 @@ g_gan = GAN(
     )
 )
 
-cycle_gan = CycleGAN(f_gan, g_gan)
-
-cycle_gan.left_inverter.compile(
-    optimizer='adam',
-    loss='mean_squared_error',
-)
-
-cycle_gan.right_inverter.compile(
-    optimizer='adam',
-    loss='mean_squared_error',
+cycle_gan = CycleGAN(
+    gan_a=f_gan,
+    gan_b=g_gan,
+    l_compile_args=dict(
+        optimizer='adam',
+        loss='mean_squared_error'
+    ),
+    r_compile_args=dict(
+        optimizer='adam',
+        loss='mean_squared_error'
+    )
 )
 
 train = Training(
@@ -145,17 +146,17 @@ train = Training(
 
 try:
     for _ in train:
-        # fs_loss = f_gan.train_generator()  # f stacked
-        # fd_loss, fd_acc = f_gan.train_discriminator()  # g discriminator
+        fs_loss = f_gan.train_generator()  # f stacked
+        fd_loss, fd_acc = f_gan.train_discriminator()  # g discriminator
 
-        gs_loss = g_gan.train_generator()
-        gd_loss, gd_acc = g_gan.train_discriminator()
+        # gs_loss = g_gan.train_generator()
+        # gd_loss, gd_acc = g_gan.train_discriminator()
 
         # leftinv_loss = cycle_gan.train_left_inverse()
         # rightinv_loss = cycle_gan.train_right_inverse()
 
-        fs_loss = 0
-        fd_loss, fd_acc = 0, 0
+        gs_loss = 0
+        gd_loss, gd_acc = 0, 0
         leftinv_loss, rightinv_loss = 0, 0
 
         if train.log:
@@ -164,8 +165,8 @@ try:
             )
 
         if train.make_samples:
-            g_sample = g_gan.generate_sample(5).reshape((5, 5, 2))
-            train.append_sample(g_sample, 'samples/sample_{gen:05f}_{i:02f}.png')
+            g_sample = f_gan.generate_sample(5)
+            train.append_sample(g_sample, 'samples/sample_{gen:05.0f}_{i:02.0f}.png')
 
         train.append_stats(
             fs_loss,

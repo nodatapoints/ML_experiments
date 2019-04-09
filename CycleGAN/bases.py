@@ -65,7 +65,7 @@ class GAN:
 
 
 class CycleGAN:
-    def __init__(self, gan_a: GAN, gan_b: GAN):
+    def __init__(self, gan_a: GAN, gan_b: GAN, l_compile_args: dict, r_compile_args: dict):
         self.gan_a, self.gan_b = gan_a, gan_b
 
         assert gan_a.input_space is gan_b.output_space \
@@ -77,8 +77,8 @@ class CycleGAN:
         self.left_inverter = self._build_stacked_inverter(gan_a, gan_b)
         self.right_inverter = self._build_stacked_inverter(gan_b, gan_a)
 
-    # !IMPORTANT
-    #   compile left and right inverse after initialisation
+        self.left_inverter.compile(**l_compile_args)
+        self.right_inverter.compile(**r_compile_args)
 
     def _build_stacked_inverter(self, f: GAN, g: GAN):
         original = Input(f.input_shape)
