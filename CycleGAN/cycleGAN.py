@@ -86,17 +86,24 @@ f_gan = GAN(
 g = Sequential([
     Reshape(image_dims + (1,), input_shape=image_dims),
     Conv2D(16, (3, 3), activation='relu', padding='same'),
+    BatchNormalization(),
     MaxPool2D((2, 2)),
     Conv2D(64, (3, 3), activation='relu', padding='same'),
+    BatchNormalization(),
     Flatten(),
-    Dense(10, activation='relu'),
-    Dense(10, activation='relu')
+    Dense(64, activation='relu'),
+    BatchNormalization(),
+    Dense(32, activation='relu'),
+    BatchNormalization(),
+    Dense(10, activation='tanh')
 ])
 
 g_d = Sequential([
     Dense(256, activation='relu', input_shape=noise_dims),
-    Dense(64, activation='relu', input_shape=noise_dims),
-    Dense(64, activation='relu', input_shape=noise_dims),
+    Dense(64, activation='relu'),
+    Dropout(.5),
+    Dense(64, activation='relu'),
+    Dropout(.5),
     Dense(1, activation='sigmoid')
 ])
 
@@ -106,7 +113,7 @@ g_gan = GAN(
     input_space=images_space,
     output_space=noise_space,
     d_compile_args=dict(
-        optimizer='adam',
+        optimizer=Adam(lr=9e-5),
         loss='binary_crossentropy',
         metrics=['accuracy']
     ),
@@ -146,27 +153,27 @@ train = Training(
 
 try:
     for _ in train:
-        fs_loss = f_gan.train_generator()  # f stacked
-        fd_loss, fd_acc = f_gan.train_discriminator()  # g discriminator
+        # fs_loss = f_gan.train_generator()  # f stacked
+        # fd_loss, fd_acc = f_gan.train_discriminator()  # g discriminator
 
-        # gs_loss = g_gan.train_generator()
-        # gd_loss, gd_acc = g_gan.train_discriminator()
+        gs_loss = g_gan.train_generator()
+        gd_loss, gd_acc = g_gan.train_discriminator()
 
         # leftinv_loss = cycle_gan.train_left_inverse()
         # rightinv_loss = cycle_gan.train_right_inverse()
 
-        gs_loss = 0
-        gd_loss, gd_acc = 0, 0
+        fs_loss = 0
+        fd_loss, fd_acc = 0, 0
         leftinv_loss, rightinv_loss = 0, 0
 
         if train.log:
             print(
-                f'{fs_loss:1.5f} {gs_loss:1.5f} {leftinv_loss:1.5f} {rightinv_loss:1.5f}'
+                f'{fs_loss:1.5f} {gs_loss:1.5f} {fd_acc:.5f} {gd_acc:.5f}'
             )
 
         if train.make_samples:
-            g_sample = f_gan.generate_sample(5)
-            train.append_sample(g_sample, 'samples/sample_{gen:05.0f}_{i:02.0f}.png')
+            g_sample = g_gan.generate_sample(5).reshape((-1, 5, 2))
+            train.append_sample(g_sample, 'samples/sample_{gen:03.0f}_{i:02.0f}.png')
 
         train.append_stats(
             fs_loss,
