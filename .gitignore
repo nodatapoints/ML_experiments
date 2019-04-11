@@ -4,3 +4,7 @@
 GAN/idx2numpy
 *.swp
 */__pycache__
+*tags
+*.h5
+*.json
+

@@ -22,6 +22,7 @@ from keras.optimizers import Adam
 from bases import GAN, CycleGAN
 from training import Training
 from plots import plot_stats, plot_samples
+from saving import save_model
 
 # from keras.layers.advanced_activations import LeakyReLU
 # from keras.optimizers import Adam
@@ -91,9 +92,9 @@ g = Sequential([
     Conv2D(64, (3, 3), activation='relu', padding='same'),
     BatchNormalization(),
     Flatten(),
-    Dense(64, activation='relu'),
+    Dense(256, activation='relu'),
     BatchNormalization(),
-    Dense(32, activation='relu'),
+    Dense(64, activation='relu'),
     BatchNormalization(),
     Dense(10, activation='tanh')
 ])
@@ -113,7 +114,7 @@ g_gan = GAN(
     input_space=images_space,
     output_space=noise_space,
     d_compile_args=dict(
-        optimizer=Adam(lr=9e-5),
+        optimizer=Adam(lr=2e-5),
         loss='binary_crossentropy',
         metrics=['accuracy']
     ),
@@ -122,7 +123,6 @@ g_gan = GAN(
         loss='binary_crossentropy'
     )
 )
-
 cycle_gan = CycleGAN(
     gan_a=f_gan,
     gan_b=g_gan,
@@ -137,7 +137,7 @@ cycle_gan = CycleGAN(
 )
 
 train = Training(
-    n_generations=1000,
+    n_generations=2000,
     log_period=100,
     stat_entries=(
         'fs_loss',
@@ -153,26 +153,20 @@ train = Training(
 
 try:
     for _ in train:
-        # fs_loss = f_gan.train_generator()  # f stacked
-        # fd_loss, fd_acc = f_gan.train_discriminator()  # g discriminator
+        fs_loss = f_gan.train_generator()  # f stacked
+        fd_loss, fd_acc = f_gan.train_discriminator()  # f discriminator
 
-        gs_loss = g_gan.train_generator()
-        gd_loss, gd_acc = g_gan.train_discriminator()
+        gs_loss = g_gan.train_generator()  # g stacked
+        gd_loss, gd_acc = g_gan.train_discriminator()  # g discriminator
 
-        # leftinv_loss = cycle_gan.train_left_inverse()
-        # rightinv_loss = cycle_gan.train_right_inverse()
-
-        fs_loss = 0
-        fd_loss, fd_acc = 0, 0
-        leftinv_loss, rightinv_loss = 0, 0
+        leftinv_loss = cycle_gan.train_left_inverse()
+        rightinv_loss = cycle_gan.train_right_inverse()
 
         if train.log:
-            print(
-                f'{fs_loss:1.5f} {gs_loss:1.5f} {fd_acc:.5f} {gd_acc:.5f}'
-            )
+            print(f'{fs_loss:1.5f} {gs_loss:1.5f} {fd_acc:.5f} {gd_acc:.5f}')
 
         if train.make_samples:
-            g_sample = g_gan.generate_sample(5).reshape((-1, 5, 2))
+            g_sample = f_gan.generate_sample(5)
             train.append_sample(g_sample, 'samples/sample_{gen:03.0f}_{i:02.0f}.png')
 
         train.append_stats(
@@ -193,3 +187,6 @@ else:
     train.compile_records()
     plot_samples(train.samples)
     plot_stats(train.stats)
+
+    save_model(f_gan.generator)
+    save_model(g_gan.generator)
